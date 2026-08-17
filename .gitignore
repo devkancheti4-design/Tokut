@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+sphere/escalations/*.md
+*.pkl
+.DS_Store
