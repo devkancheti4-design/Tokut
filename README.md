@@ -101,6 +101,12 @@ python3 -m sphere resume <file> --act ADD_STATE
 That is the whole architecture: **the law rules for free, the model is paid
 only for the tail.**
 
+> **Measured caveat, and the most useful thing testing produced.** Of 22 real
+> abstentions, only 8 were in positions where one act could still win — on four
+> jobs the law's own earlier acts had already destroyed the solution before it
+> escalated. If you tune one thing, tune *when* the loop gives up, not what it
+> asks for. Escalating late is worse than not escalating.
+
 ---
 
 ## Connect any API
@@ -144,36 +150,95 @@ free and reaches out **once**, for the one job that is genuinely unsolvable.
 
 ## Measured results
 
-Everything below was measured by running the code in this repository. Numbers
-you can reproduce with the commands above.
+Everything below was produced by running the code in this repository, and every
+number survived an adversarial review that found real defects in it. Where a
+figure changed under scrutiny, the corrected one is here and the change is
+noted.
 
-**Cross-domain transfer.** Six engines authored *blind and adversarially* by
-independent agents told to make a fixed-priority controller misfire — CSP
-solving, query planning, scheduling, grammar induction, regex induction, type
-inference. Lossy granularity changes, superlinear `RAISE_SIZE`, `UNREAD` hidden
-behind another repair, one impossible job each.
+### The law alone, on engines built to break it
 
-| controller | solved |
-|---|---|
-| **Law C** | **31/53 (58%)** |
-| round-robin | 9/53 |
-| naive (always raise budget) | 8/53 |
-| random | 6/53 |
+Six engines authored *blind and adversarially* by independent agents told to make
+a fixed-priority controller misfire — CSP solving, query planning, scheduling,
+grammar induction, regex induction, type inference. Lossy granularity changes,
+superlinear `RAISE_SIZE`, `UNREAD` hidden behind another repair, one impossible
+job each.
 
-Against the 47 achievable jobs (6 are impossible by design): **66%**.
+| controller | solved | of achievable |
+|---|---|---|
+| **Law C** | **31/53** | **31/44 (70%)** |
+| round-robin | 9/53 | |
+| naive (always raise budget) | 8/53 | |
+| random | 6/53 | |
+
+**Nine of the 53 jobs are impossible**, not the six their authors declared.
+Exhaustive act-sequence search to depth 3 plus the law proves `star-wide`,
+`restart-basin` and `self-memo` unreachable too. Declared prose is not ground
+truth; `sphere/replay.py` carries the corrected set.
+
 Fourteen situations arose that were never in the law's 21 authoring events.
 **Zero fell outside their closure** — it extrapolated correctly to every one.
 
-**Program synthesis.** 5/5 on random unnamed functions over 16-bit words,
-verified exhaustively on all 65,536 inputs, recovering a *shorter* form than the
-generator every time. Frontier models scored 5/5, 5/5 and 4/5 on the same task
-at 87k–147k output tokens each. Law C: **0**.
+183 rulings. Zero model tokens.
 
-**Tokens.** 183 rulings across 53 jobs. Priced at rates measured directly —
-1,644 tok/ruling for 8-bit situations, 3,781 for rich state — those rulings
-would have cost **300,852–691,923 tokens**. They cost zero.
+### Cross-engine transfer
 
----
+The same law, unchanged, also scored **8/8** on a decision-tree learner — a
+different engine with different failure modes — against 3/8 for naive and 2/8
+for round-robin. Three of the ten situations that domain produced had never been
+seen when the law was authored.
+
+### Program synthesis
+
+5/5 on random unnamed functions over 16-bit words, verified exhaustively on all
+65,536 inputs, recovering a *shorter* form than the generator every time.
+Frontier models scored 5/5, 5/5 and 4/5 on the same task at 87k–147k output
+tokens each. Law C: **0**.
+
+### Does escalation actually help?
+
+The 22 abstentions were each sent to one model call — the shipped architecture,
+measured rather than assumed, and scored by replay rather than by asking the
+model how confident it was.
+
+```
+rescued 6 | correct DROP 9 | wrong DROP 0 | wasted 3 | still stuck 4
+law alone 31/53   ->   law + 22 calls 37/53        useful calls 15/22 (68%)
+```
+
+**It was 9/9 on impossibility** — better than this repository's own ground truth
+was before the run. That is the capability a fixed law cannot express at all:
+the law has no act meaning *stop, this cannot be solved*.
+
+**On rescues it ties a constant policy.** At true parity — one act, no retries,
+no oracle:
+
+| policy | rescues |
+|---|---|
+| always `CHANGE_GRANULARITY` | 6/22 |
+| any other single fixed act | 0–1/22 |
+| first act that is not a no-op, fixed order | 7/22 |
+| the same, random order (15 seeds) | mean **3.7**, min 1 |
+| **one model call, one act** | **6/22** |
+
+So the escalation's value is concentrated in `DROP`, not in repair choice. A
+"first act that moves" fallback looks competitive only with a hand-picked
+ordering; shuffle it and it collapses.
+
+**And 14 of the 22 escalations were unwinnable by construction.** Only 8 sat in
+positions where one act could still win, and the model got 6 of those 8. On four
+jobs the law's own earlier acts had already destroyed the solution before it
+escalated. That is the sharpest finding here, and it is an architecture problem,
+not a model problem: **escalate earlier, or not at all.**
+
+### What testing changed
+
+- `sphere/api.py` parsed acts by substring containment and `max(hit, key=len)`.
+  Fed 22 real responses it **misparsed 12** — eight correct `DROP` verdicts
+  became repair acts. Now: exact match, then first line, then a single distinct
+  whole-word match, else **refuse**. 0 wrong acts over 44 cases.
+- The impossible-job set was 6; it is 9.
+- `confidence` in the resolver schema carried no information — all 22 responses
+  said `high`, including three wrong acts. Do not trust it.
 
 ## Measuring your own loop
 
@@ -189,6 +254,39 @@ machine and none is committed to this repository.
 
 ---
 
+## What it is actually good for
+
+Testing narrowed the claim and made it defensible. The honest statement is
+**bimodal, not an average**:
+
+**Where the whole loop is decisions, it replaces essentially all of them.**
+Constraint solving, plan search, grammar and regex induction, type inference,
+program synthesis, any fit-repair-refit cycle. The eight observations are
+computable from engine state, the act set is small and fixed, and the ruling is
+free and identical every time. That is what the 31/44 and the 8/8 measure.
+
+**Where the loop mostly produces content, it touches a slice.** Instrumenting a
+real agent loop — 2,299 sessions, 12,795 tasks, 187.8M output tokens — found
+**25.7% of output tokens are ruling-shaped**, at a mean of 6.0 rulings per task
+and 958 tokens each. That is a **ceiling, not a saving**: those rulings pick
+among ~15 tools on semantic features ("which file matters"), while a law picks
+among 8 acts on computable bits. Only the computable subset is replaceable.
+
+Run `python3 -m sphere.instrument` on your own transcripts before believing any
+figure, including these.
+
+**What this does not support:** a blanket percentage across all compute. No
+published source decomposes token spend by call shape, so there is no
+denominator to take a share of. Claims of the form "saves N% of any workload"
+are unfalsifiable in the current literature and this repository does not make
+one.
+
+**The rule of thumb the evidence does support:** the law captures close to all
+of your *ruling* tokens wherever the deciding features are computable. Measure
+your ruling share; that is your number.
+
+---
+
 ## Honest boundaries
 
 **Rulings only.** Every token spent writing code, explaining an error or
@@ -200,8 +298,8 @@ prove it cheaply; in the bundled expression search it costs 57× the search it
 rides on and is only one-sided. That boundary is where escalation earns its
 cost.
 
-**A fixed priority is not universally optimal.** Adversarial domains cost it a
-third of what was winnable. Two rulings in particular are contested:
+**A fixed priority is not universally optimal.** Adversarial domains cost it 13
+of the 44 winnable jobs. Two rulings in particular are contested:
 `--law D` ships Law C with `HIDDEN` outranking `NOTWIN` (measured 3 wins, 2 ties,
 0 losses over five probes, roughly half the search cost) and `decide(0) =
 REGISTER` instead of `AUTHOR_SUCCESSOR`. `--law C` remains the default.
