@@ -12,12 +12,17 @@
     python3 -m sphere run tasks/demo.json       run tasks; abstentions get filed
     python3 -m sphere escalations               list what is waiting on a model
     python3 -m sphere resume <file> --act ACT   feed a model's act back in
+    python3 -m sphere config                    show which API resolve/--auto use
+    python3 -m sphere resolve <file>            ask the configured API for an act
+    python3 -m sphere run tasks.json --auto     resolve abstentions automatically
 
-Only `resume` ever involves a model, and only for jobs the law abstained on.
+Only `resolve`, `--auto` and a manual `resume` ever involve a model, and only
+for jobs the law abstained on. Every other ruling is free.
 """
 import argparse, glob, json, os, sys, time
 from .law import Law, claimed_set, ACTS, MEASURED
 from .loop import run_job, ESC
+from . import api
 from .engine import M
 
 
@@ -83,6 +88,21 @@ def cmd_run(a):
             print("   REGISTERED  %s%s\n" % (r.get("expr") or "(dropped)",
                   "" if r.get("exact") is None else
                   "   [exact on all 65536]" if r["exact"] else "   [UNVERIFIED]"))
+        elif getattr(a, "auto", False):
+            print("   ABSTAINED   %s -> asking the model" % r["why"])
+            act = _resolve_one(r["esc"], a)
+            if act and act != "DROP":
+                r2 = run_job(s, law, rounds=a.rounds, budget=a.budget,
+                             claimed=claimed, verbose=False, forced_first=act)
+                if r2["ok"]:
+                    solved += 1; os.remove(r["esc"])
+                    print("   RESOLVED    %s\n" % (r2.get("expr") or "(dropped)"))
+                else:
+                    esc.append(r["esc"]); print("   still stuck: %s\n" % r2["why"])
+            elif act == "DROP":
+                os.remove(r["esc"]); print("   DROPPED     model judged it unsolvable\n")
+            else:
+                esc.append(r["esc"]); print()
         else:
             esc.append(r["esc"])
             print("   ABSTAINED   %s\n   -> %s\n" % (r["why"], os.path.relpath(r["esc"])))
@@ -95,6 +115,37 @@ def cmd_run(a):
         for p in esc: print("   %s" % os.path.relpath(p))
         print("\nHand one to your model, then:")
         print("   python3 -m sphere resume <file> --act <ACT_NAME>")
+
+
+def cmd_config(a):
+    print(api.describe())
+    print("\nset any of: TOKUT_PROVIDER (openai|anthropic) TOKUT_BASE_URL")
+    print("            TOKUT_MODEL TOKUT_API_KEY")
+    print("an OpenAI-compatible local server needs no key:")
+    print("   export TOKUT_BASE_URL=http://localhost:11434/v1")
+    print("   export TOKUT_MODEL=qwen2.5-coder")
+
+
+def _resolve_one(path, a, verbose=True):
+    """Ask the configured API for one act. Returns the act name, or None."""
+    state = open(path).read()
+    try:
+        act, raw, tok = api.ask(state, a.provider, a.base_url, a.model)
+    except api.ApiError as e:
+        print("   API error: %s" % e); return None
+    if verbose:
+        print("   model returned %-22s (%d in / %d out tokens)" % (act, tok[0], tok[1]))
+    return act
+
+
+def cmd_resolve(a):
+    path = a.file if os.path.exists(a.file) else os.path.join(ESC, a.file)
+    if not os.path.exists(path): sys.exit("no such escalation: %s" % a.file)
+    print("resolving %s via %s" % (os.path.relpath(path), api.describe()))
+    act = _resolve_one(path, a)
+    if act is None: sys.exit(1)
+    a.act = act; a.file = path
+    cmd_resume(a)
 
 
 def cmd_escalations(a):
@@ -131,10 +182,19 @@ p = argparse.ArgumentParser(prog="sphere")
 p.add_argument("--law", default="C", choices=["C", "D"])
 p.add_argument("--rounds", type=int, default=20)
 p.add_argument("--budget", type=int, default=40_000_000)
+p.add_argument("--provider", choices=["openai", "anthropic"])
+p.add_argument("--base-url"); p.add_argument("--model")
 sub = p.add_subparsers(dest="cmd", required=True)
 sp = sub.add_parser("verify"); sp.set_defaults(f=cmd_verify)
 sp = sub.add_parser("run"); sp.add_argument("paths", nargs="+")
-sp.add_argument("--no-claim-check", action="store_true"); sp.set_defaults(f=cmd_run)
+sp.add_argument("--no-claim-check", action="store_true")
+sp.add_argument("--auto", action="store_true",
+                help="resolve abstentions through the configured API")
+sp.set_defaults(f=cmd_run)
+sp = sub.add_parser("config"); sp.set_defaults(f=cmd_config)
+sp = sub.add_parser("resolve"); sp.add_argument("file")
+sp.add_argument("--tasks", nargs="+", default=["sphere/tasks/*.json"])
+sp.set_defaults(f=cmd_resolve)
 sp = sub.add_parser("escalations"); sp.set_defaults(f=cmd_escalations)
 sp = sub.add_parser("resume"); sp.add_argument("file")
 sp.add_argument("--act", required=True)

@@ -103,6 +103,45 @@ only for the tail.**
 
 ---
 
+## Connect any API
+
+Abstentions can resolve themselves. Two wire formats cover essentially
+everything, and there is no SDK and no dependency — `urllib` only.
+
+```bash
+# any OpenAI-compatible endpoint: OpenAI, Groq, Together, Fireworks,
+# OpenRouter, vLLM, llama.cpp, LM Studio, Ollama
+export TOKUT_BASE_URL=https://api.openai.com/v1
+export TOKUT_MODEL=gpt-4o-mini
+export TOKUT_API_KEY=...
+
+# or Anthropic
+export TOKUT_PROVIDER=anthropic
+export TOKUT_MODEL=claude-sonnet-4-5
+export TOKUT_API_KEY=...
+
+# or a local model, no key at all
+export TOKUT_BASE_URL=http://localhost:11434/v1
+export TOKUT_MODEL=qwen2.5-coder
+```
+
+```bash
+python3 -m sphere config                       # show what is configured
+python3 -m sphere resolve <escalation>         # one call, one act, applied
+python3 -m sphere run tasks.json --auto        # resolve abstentions inline
+```
+
+The model is asked for **one word**: an act name, capped at 16 output tokens.
+It never sees your loop except through the escalation file. Keys are read from
+the environment at call time — never written to disk, never logged, never
+committed. With no key configured the call fails cleanly and the job falls back
+to the manual path.
+
+The economics are the point. In the bundled demo the law makes every ruling for
+free and reaches out **once**, for the one job that is genuinely unsolvable.
+
+---
+
 ## Measured results
 
 Everything below was measured by running the code in this repository. Numbers

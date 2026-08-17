@@ -22,7 +22,7 @@ then only the subset whose features a program could compute. This measures the
 CEILING, not the saving. Nothing here leaves your machine.
 
     python3 -m sphere.instrument
-    python3 -m sphere.instrument --project -Users-kanchetidevieswar-tests
+    python3 -m sphere.instrument --project <project-dir-name>
 """
 import argparse, collections, glob, json, os, sys
 
