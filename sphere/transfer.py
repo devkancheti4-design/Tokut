@@ -92,7 +92,7 @@ def drive(m, job, brain, law, rounds=20):
         sit = law.situation(**o)
         seen.add(sit)
         act = brain(sit)
-        hist.append(act[:4])
+        hist.append(act)
         if act == "REGISTER":
             return dict(ok=bool(m.solved(job, r)), why="REGISTER", hist=hist, sits=seen)
         nxt = m.apply_act(act, job, r)

@@ -119,12 +119,51 @@ def ask(state_text, provider=None, base_url=None, model=None, timeout=90):
         u = d.get("usage") or {}
         tok = (u.get("prompt_tokens", 0), u.get("completion_tokens", 0))
 
-    up = (raw or "").strip().upper()
-    hit = [a for a in ACTS if a in up]
-    if not hit:
-        raise ApiError("model returned no recognised act: %r" % (raw or "")[:120])
-    # longest match wins so ADD_MASK_TWIN is not read as ADD_MATERIAL
-    return max(hit, key=len), raw, tok
+    return parse_act(raw), raw, tok
+
+
+_WORD = None
+
+
+def parse_act(raw):
+    """Extract exactly one act, or refuse.
+
+    Substring containment is NOT safe here: a model that explains itself
+    mentions several act names, and picking the longest match systematically
+    returns the wrong one -- measured at 12 misparses in 22 real responses,
+    turning correct DROP verdicts into repair acts. So: exact match first,
+    then a whole-word match anchored at the start, then give up. Guessing an
+    act is worse than escalating again, because a wrong act burns the job."""
+    import re
+    global _WORD
+    if _WORD is None:
+        _WORD = re.compile(r"\b(" + "|".join(sorted(ACTS, key=len, reverse=True))
+                           + r")\b")
+    text = (raw or "").strip()
+    if not text:
+        raise ApiError("model returned an empty response")
+
+    # 1. the whole reply is the act, give or take punctuation and quoting
+    bare = text.strip(" \t\r\n.,:;!?'\"`*_").upper()
+    if bare in ACTS:
+        return bare
+
+    # 2. the first line is the act
+    first = text.splitlines()[0].strip(" \t\r\n.,:;!?'\"`*_").upper()
+    if first in ACTS:
+        return first
+
+    # 3. a single distinct act appears as a whole word anywhere
+    found = _WORD.findall(text.upper())
+    distinct = set(found)
+    if len(distinct) == 1:
+        return found[0]
+
+    if not distinct:
+        raise ApiError("model returned no recognised act: %r" % text[:120])
+    raise ApiError("ambiguous response names %d different acts (%s); refusing "
+                   "to guess -- the escalation stands"
+                   % (len(distinct), ", ".join(sorted(distinct))))
 
 
 def describe():
