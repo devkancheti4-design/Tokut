@@ -84,6 +84,8 @@ The loop stops and writes a self-contained file to `sphere/escalations/` in
 exactly four cases:
 
 - **STALL** — the ruled act is a no-op; the law has no move left
+- **LIVELOCK** — the same act ruled 6 times without registering; not stalled,
+  each act still changes something, but the loop is going in a circle
 - **EXHAUSTED** — rounds or budget spent without registering
 - **SUCCESSOR** — the law ruled `AUTHOR_SUCCESSOR`; a host cannot author its own
   replacement, so the decision leaves the loop by design
@@ -101,11 +103,14 @@ python3 -m sphere resume <file> --act ADD_STATE
 That is the whole architecture: **the law rules for free, the model is paid
 only for the tail.**
 
-> **Measured caveat, and the most useful thing testing produced.** Of 22 real
-> abstentions, only 8 were in positions where one act could still win — on four
-> jobs the law's own earlier acts had already destroyed the solution before it
-> escalated. If you tune one thing, tune *when* the loop gives up, not what it
-> asks for. Escalating late is worse than not escalating.
+> **When to escalate, settled by measurement.** Of 22 real abstentions only 8
+> were still winnable in one act, which looked like an argument for escalating
+> earlier. It is not — that was tested and refuted. Firing on a repeated act or
+> a repeated observation escalates 30 jobs instead of 22 and solves **fewer**
+> (37 vs 38), because it preempts jobs the law was going to finish alone. The
+> only refinement that helps is a late **livelock guard**: stall alone scores
+> 38/53, `stall OR the same act ruled 6 times` scores **39/53** at the same 3.1
+> calls per extra solve. That guard is what ships.
 
 ---
 
@@ -230,7 +235,7 @@ jobs the law's own earlier acts had already destroyed the solution before it
 escalated. That is the sharpest finding here, and it is an architecture problem,
 not a model problem: **escalate earlier, or not at all.**
 
-### What testing changed
+### What testing changed and refuted
 
 - `sphere/api.py` parsed acts by substring containment and `max(hit, key=len)`.
   Fed 22 real responses it **misparsed 12** — eight correct `DROP` verdicts
@@ -239,11 +244,23 @@ not a model problem: **escalate earlier, or not at all.**
 - The impossible-job set was 6; it is 9.
 - `confidence` in the resolver schema carried no information — all 22 responses
   said `high`, including three wrong acts. Do not trust it.
+- **"Escalate earlier" was wrong.** It was the headline recommendation for one
+  commit, then measured and refuted: earlier triggers cost more calls for fewer
+  solves. Replaced by the livelock guard, which is worth exactly one extra solve.
+- **"A free fallback beats the model" was wrong too**, and for an instructive
+  reason: the comparison pitted an oracle that tries all six acts against a
+  policy that commits to one. At true parity the model's 6/22 ties the best
+  single fixed act, and a random-ordered fallback averages 3.7.
 
 ## Measuring your own loop
 
+**One line. Run it on your own transcripts and see your own number:**
+
 ```bash
-python3 -m sphere.instrument          # reads ~/.claude/projects transcripts
+git clone https://github.com/devkancheti4-design/Tokut.git && cd Tokut && python3 -m sphere.instrument
+```
+
+```bash
 python3 -m sphere.savings --rulings-per-task 6 --tasks-per-day 20
 ```
 
