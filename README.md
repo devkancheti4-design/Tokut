@@ -185,6 +185,38 @@ Fourteen situations arose that were never in the law's 21 authoring events.
 
 183 rulings. Zero model tokens.
 
+### No weights, and it still beats things that have them
+
+The same 21 events, handed to learned models, which were then run as **actual
+controllers** on the six adversarial engines. Solve rate is the score — not
+agreement with the law, so the comparison is not circular.
+
+| controller | parameters | all 256 | 14 novel | **solved** |
+|---|---|---|---|---|
+| **Law C** | **0** | **100%** | **14/14** | **31/53** |
+| DecisionTree | 15 nodes | 96% | 13/14 | 31/53 |
+| RandomForest x200 | 3,908 | 93% | 12/14 | 31/53 |
+| MLP 64x64 | 5,256 | 89% | 10/14 | 30/53 |
+| MLP 256x256x256 | **135,944** | 89% | 10/14 | 29/53 |
+| k-NN (k=1) | 168 | 62% | 10/14 | 29/53 |
+| GradientBoosting | 10,180 | 76% | 5/14 | 26/53 |
+| LogisticRegression | 72 | 92% | 10/14 | 26/53 |
+
+A 136,000-parameter network, trained on identical data, generalises **worse** to
+engines it was never built for than 141 characters carrying no parameters at all.
+
+The model that ties it is the informative one: a 15-node decision tree, which is
+rediscovering the same priority ladder. That is the answer to the obvious
+objection — that the law's power is really in the bit-ordering rather than in
+inference. The ordering is not a shortcut that cheapens the result; it is the
+structure the learners spend thousands of parameters recovering, encoded exactly
+and evaluated for free. Sorting the array *is* the algorithm.
+
+Reproduce: `python3 -m sphere.bench_learned` (needs scikit-learn; nothing else
+in this repository does).
+
+---
+
 ### Cross-engine transfer
 
 The same law, unchanged, also scored **8/8** on a decision-tree learner — a
