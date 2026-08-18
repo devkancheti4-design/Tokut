@@ -267,6 +267,40 @@ jobs the law's own earlier acts had already destroyed the solution before it
 escalated. That is the sharpest finding here, and it is an architecture problem,
 not a model problem: **escalate earlier, or not at all.**
 
+### Brain and body are worth very different amounts
+
+The brain decides *which* act. The body decides *how* to perform it. Separating
+them changes what you should pay for.
+
+`ADD_MATERIAL` adds the next family in a fixed catalogue order. A task whose
+missing capability sits late in that order pays for the whole prefix. Same Law C
+brain, body swapped:
+
+| body | solved | law rulings |
+|---|---|---|
+| fixed catalogue order | 2/8 | 48 |
+| a body that reads the rows and chooses | **7/8** | **22** |
+
+Then the reverse — same body, brain swapped:
+
+| brain | solved | acts | model calls |
+|---|---|---|---|
+| **Law C** | 7/8 | 22 | **0** |
+| Sonnet 5 | 7/8 | 22 | 22 (~4,951 tokens per ruling) |
+
+**Identical decisions, identical act sequences, identical solve rate.** Asked to
+rule on the eight round-one situations, Sonnet 5 returned `ADD_MATERIAL` eight
+times out of eight — exactly what the law returns — for 39,608 tokens.
+
+So the architecture the evidence supports is: **the law is the brain, and a
+model is the body.** Judgment about *which* repair is a solved problem worth zero
+tokens. Judgment about *how* to perform it is where a frontier model earns its
+cost — it is the difference between 2/8 and 7/8 here.
+
+Reproduce: `python3 -m sphere.bench_brainbody fixed` and `... oracle`.
+
+---
+
 ### What testing changed and refuted
 
 - `sphere/api.py` parsed acts by substring containment and `max(hit, key=len)`.
