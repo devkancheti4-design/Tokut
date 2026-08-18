@@ -276,10 +276,23 @@ them changes what you should pay for.
 missing capability sits late in that order pays for the whole prefix. Same Law C
 brain, body swapped:
 
-| body | solved | law rulings |
-|---|---|---|
-| fixed catalogue order | 2/8 | 48 |
-| a body that reads the rows and chooses | **7/8** | **22** |
+| body | solved | families right | tokens |
+|---|---|---|---|
+| fixed catalogue order | 2/8 | 1/8 | **0** |
+| **Haiku 4.5** | **7/8** | 7/8 | 24,256 |
+| **Sonnet 5** | **7/8** | **8/8** | 32,505 |
+| perfect oracle (a cheat) | 7/8 | 8/8 | — |
+
+The achievable ceiling is **7/8**, not 8/8: one job needs `x & 255` at three
+nodes and the engine cannot reach it even when handed the right family. **Both
+models close the entire gap** — roughly 4,851 tokens per extra solve.
+
+Task names were made opaque for this. An earlier run leaked the answer through
+labels like `needs-arith`, and an agent accidentally given *no row data at all*
+scored 8/8 by matching names to families. Any model would have. The numbers
+above are from `job-A` … `job-H` with the mapping held back, so every choice is
+inferred from rows: `[[2,4],[3,9],[5,25]]` to `mul`, `[[32768,1],[65535,1]]` and
+zero elsewhere to `signbit`.
 
 Then the reverse — same body, brain swapped:
 

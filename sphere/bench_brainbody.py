@@ -16,10 +16,17 @@ ADD_MATERIAL adds the next family in a fixed catalogue order:
 A task whose missing capability is 'mul' costs eight ADD_MATERIALs under that
 body and one under a body that reads the rows and chooses.
 
-MEASURED, same Law C brain throughout:
-    catalogue body   2/8 solved, 48 law rulings
-    perfect body     7/8 solved, 22 law rulings
-The body is the lever. The brain is free either way.
+MEASURED, same Law C brain throughout, task names made opaque so the model
+cannot read the answer off the label (an earlier run leaked exactly that way --
+an agent given NO row data at all scored 8/8 by matching "needs-arith" to
+"arith"):
+    catalogue body      2/8 solved, 1/8 families right,  0 tokens
+    Haiku 4.5 body      7/8 solved, 7/8 families right,  24,256 tokens
+    Sonnet 5 body       7/8 solved, 8/8 families right,  32,505 tokens
+    perfect oracle      7/8 solved, 8/8 families right   (a cheat, the ceiling)
+The achievable ceiling is 7/8, not 8/8: job-D needs `x & 255` at 3 nodes and the
+engine cannot reach it even when handed the right family. Both models close the
+entire gap. The body is the lever, and a model fills it completely.
 
 MEASURED, same perfect body, brain swapped:
     Law C brain      7/8, 22 acts,  0 model calls
