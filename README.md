@@ -231,6 +231,41 @@ seen when the law was authored.
 Frontier models scored 5/5, 5/5 and 4/5 on the same task at 87k–147k output
 tokens each. Law C: **0**.
 
+### Held out: it returns a verified answer, not an asserted one
+
+Fifteen fresh unnamed targets, a seed never used elsewhere in this work, and
+only **eight biased starting rows** (inputs 0 through 7). Nothing was tuned for
+them; the law is the same 141 characters.
+
+```
+solved exactly on the whole declared domain : 15/15
+   recovered a SHORTER form than the generator : 14
+   same length                                 :  1
+mean generator 7.3 nodes  ->  mean recovered 5.0 nodes   (-31%)
+HARVEST_COUNTEREXAMPLE calls (asking for more examples)  :  6
+```
+
+On two jobs the eight rows were not enough: the search fit them, the decider
+refused the result, and the law ruled `HARVEST_COUNTEREXAMPLE` — asking for the
+exact input that broke it — then generalised from the enlarged set. Six such
+requests across fifteen jobs, spent only where the sample was insufficient.
+
+**What separates this from a model answering the same question.** A model
+returns an expression. This returns an expression *plus a decision procedure
+that checked it on every input in the declared domain*. The verification is not
+a favour someone does afterwards; it is the thing that produced the `BUILT` bit
+the law ruled on. Where a domain is small enough to enumerate, the guarantee is
+total. Where it is not, the same machinery degrades to whatever decider you can
+afford — and it reports `UNVERIFIED` rather than pretending.
+
+That is the honest asymmetry. A frontier model cannot prove an answer holds for
+inputs it never saw; it returns the answer. This returns the answer with the
+range over which it was checked attached.
+
+Reproduce: `python3 -m sphere.bench_heldout`.
+
+---
+
 ### Does escalation actually help?
 
 The 22 abstentions were each sent to one model call — the shipped architecture,
